@@ -20,7 +20,7 @@ if 'test' in sys.argv:
 
 def loadFile(fn):
 	with open(fn) as f:
-    	return yaml.load(f, Loader=yaml.FullLoader)
+		return yaml.load(f, Loader=yaml.FullLoader)
 
 credential = loadFile('credential')
 config = loadFile('config')
@@ -57,14 +57,14 @@ def process():
 		# TODO: support docs, movies also
 		media = []
 		for m in [msg] + popMessages(msg):
-	        photo = InputMediaPhoto(m.photo[-1].file_id, 
-	            caption=cc.convert(m.caption_markdown), 
-	            parse_mode='Markdown')
-	        if m.caption_markdown:
-	            media = [photo] + media
-	        else:
-	            media.append(photo)
-	    bot.send_media_group(reciever, media)
+			photo = InputMediaPhoto(m.photo[-1].file_id, 
+				caption=cc.convert(m.caption_markdown), 
+				parse_mode='Markdown')
+			if m.caption_markdown:
+				media = [photo] + media
+			else:
+				media.append(photo)
+		bot.send_media_group(reciever, media)
 	global queue
 	queue = new_queue
 	if queue:
@@ -75,20 +75,20 @@ def process():
 
 @log_on_fail(debug_group)
 def manage(update, context):
-    msg = update.channel_post
-    if not msg:
-        return
-    reciever = config.get(msg.chat.username)
-    if not reciever:
-    	return
-    queue.append((reciever, msg))
-    if not scheulded:
-    	global scheulded
-    	scheulded = True
-    	threading.Timer(wait, process).start()
+	msg = update.channel_post
+	if not msg:
+		return
+	reciever = config.get(msg.chat.username)
+	if not reciever:
+		return
+	queue.append((reciever, msg))
+	if not scheulded:
+		global scheulded
+		scheulded = True
+		threading.Timer(wait, process).start()
 
 tele.dispatcher.add_handler(MessageHandler(
-    Filters.update.channel_posts & (~Filters.command), manage))
+	Filters.update.channel_posts & (~Filters.command), manage))
 
 tele.start_polling()
 tele.idle()
