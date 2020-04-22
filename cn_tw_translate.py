@@ -30,34 +30,48 @@ bot = tele.bot # cn_tw_translate_bot
 debug_group = bot.get_chat(-1001198682178)
 test_group = bot.get_chat(-353219661)
 
+def popMessages(msg):
+	if not msg.media_group_id:
+		return []
+	result = [m for (reciever, m) in queue if m.media_group_id == msg.media_group_id]
+	global queue
+	queue = [(reciever, m) for (reciever, m) in queue if m.media_group_id != msg.media_group_id]
+	return result
+
 def process():
 	new_queue = []
 	while queue:
 		reciever, msg = queue.pop()
-		new_queue.append((reciever, msg))
 		if time.time() - datetime.timestamp(msg.date) < wait:
+			new_queue.append((reciever, msg))
 			continue
 		try:
 			r = bot.forward_message(chat_id = test_group.id, 
 				from_chat_id = msg.chat_id, message_id = msg.message_id)
 			r.delete()
 		except:
-			new_queue.pop()
 			continue
 		if msg.text:
 			bot.send_message(reciever, cc.convert(msg.text))
 			continue
 		# TODO: support docs, movies also
 		media = []
-		for m in [msg] + getMessages(msg):
+		for m in [msg] + popMessages(msg):
 	        photo = InputMediaPhoto(m.photo[-1].file_id, 
-	            caption=m.caption_markdown, parse_mode='Markdown')
+	            caption=cc.convert(m.caption_markdown), 
+	            parse_mode='Markdown')
 	        if m.caption_markdown:
 	            media = [photo] + media
 	        else:
 	            media.append(photo)
 	    bot.send_media_group(reciever, media)
-
+	global queue
+	queue = new_queue
+	if queue:
+		threading.Timer(wait, process).start()
+	else:
+		global scheulded
+		scheulded = False
 
 @log_on_fail(debug_group)
 def manage(update, context):
@@ -69,6 +83,7 @@ def manage(update, context):
     	return
     queue.append((reciever, msg))
     if not scheulded:
+    	global scheulded
     	scheulded = True
     	threading.Timer(wait, process).start()
 
