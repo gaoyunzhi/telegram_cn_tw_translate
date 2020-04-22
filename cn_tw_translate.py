@@ -7,8 +7,9 @@ from telegram import InputMediaPhoto
 import threading
 from telegram_util import log_on_fail
 import sys
-import datetime
+from datetime import datetime
 from opencc import OpenCC
+import time
 cc = OpenCC('s2tw')
 
 scheulded = False
@@ -25,20 +26,21 @@ def loadFile(fn):
 credential = loadFile('credential')
 config = loadFile('config')
 
-tele = Updater(CREDENTIALS['bot_token'], use_context=True)
+tele = Updater(credential['bot_token'], use_context=True)
 bot = tele.bot # cn_tw_translate_bot
 debug_group = bot.get_chat(-1001198682178)
 test_group = bot.get_chat(-353219661)
 
 def popMessages(msg):
+	global queue
 	if not msg.media_group_id:
 		return []
 	result = [m for (reciever, m) in queue if m.media_group_id == msg.media_group_id]
-	global queue
 	queue = [(reciever, m) for (reciever, m) in queue if m.media_group_id != msg.media_group_id]
 	return result
 
 def process():
+	global queue
 	new_queue = []
 	while queue:
 		reciever, msg = queue.pop()
@@ -65,7 +67,6 @@ def process():
 			else:
 				media.append(photo)
 		bot.send_media_group(reciever, media)
-	global queue
 	queue = new_queue
 	if queue:
 		threading.Timer(wait, process).start()
@@ -82,8 +83,8 @@ def manage(update, context):
 	if not reciever:
 		return
 	queue.append((reciever, msg))
+	global scheulded
 	if not scheulded:
-		global scheulded
 		scheulded = True
 		threading.Timer(wait, process).start()
 
