@@ -7,7 +7,7 @@ from telegram import InputMediaPhoto
 import threading
 from telegram_util import log_on_fail
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from opencc import OpenCC
 import time
 cc = OpenCC('s2tw')
@@ -44,7 +44,9 @@ def process():
 	new_queue = []
 	while queue:
 		reciever, msg = queue.pop()
-		if time.time() - datetime.timestamp(msg.date) < wait:
+		epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+		timestamp = (msg.date.replace(tzinfo=timezone.utc) - epoch) / timedelta(seconds=1)
+		if time.time() - timestamp < wait:
 			new_queue.append((reciever, msg))
 			continue
 		try:
@@ -53,20 +55,19 @@ def process():
 			r.delete()
 		except:
 			continue
-		if msg.text:
-			bot.send_message(reciever, cc.convert(msg.text))
+		# TODO: support text, docs, movies also
+		if not msg.photo:
 			continue
-		# TODO: support docs, movies also
 		media = []
 		for m in [msg] + popMessages(msg):
 			photo = InputMediaPhoto(m.photo[-1].file_id, 
-				caption=cc.convert(m.caption_markdown), 
+				caption=m.caption_markdown and cc.convert(m.caption_markdown),
 				parse_mode='Markdown')
 			if m.caption_markdown:
 				media = [photo] + media
 			else:
 				media.append(photo)
-		bot.send_media_group(reciever, media)
+		bot.send_media_group('@' + reciever, media)
 	queue = new_queue
 	if queue:
 		threading.Timer(wait, process).start()
